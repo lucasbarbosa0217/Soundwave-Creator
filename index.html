@@ -275,6 +275,13 @@
 </style>
 </head>
 <body>
+<div id="fileProtocolBanner" style="display:none;background:#3a1f1a;border-bottom:2px solid var(--danger);color:#f2ede1;padding:14px 20px;font-family:'IBM Plex Mono',monospace;font-size:12.5px;line-height:1.7;">
+  <strong style="color:#ff8a7a;">⚠ Este arquivo foi aberto diretamente (file://) — o motor ffmpeg não consegue rodar assim.</strong><br>
+  Os navegadores bloqueiam a criação de Web Workers de outra origem quando a página é aberta como arquivo local. Sirva esta pasta por um servidor local e abra via <code>http://localhost</code>. Exemplos, no terminal, dentro da pasta do arquivo:<br>
+  &nbsp;&nbsp;• Python 3: <code>python3 -m http.server 8000</code> → abra <code>http://localhost:8000/gerador-de-onda-sonora.html</code><br>
+  &nbsp;&nbsp;• Node.js: <code>npx serve .</code><br>
+  &nbsp;&nbsp;• VS Code: extensão "Live Server" → botão "Go Live"
+</div>
 <div class="wrap">
 
   <!-- HERO -->
@@ -550,6 +557,11 @@ function fmtTime(s){
 }
 function hexNoHash(hex){ return '0x' + hex.replace('#','').toUpperCase(); }
 
+/* ---------------- protocol check ---------------- */
+if(location.protocol === 'file:'){
+  document.getElementById('fileProtocolBanner').style.display = 'block';
+}
+
 /* ---------------- scope animation (decorative) ---------------- */
 (function animateScope(){
   const path = $('scopePath');
@@ -717,7 +729,14 @@ document.querySelectorAll('.preset-chip[data-preset]').forEach(chip=>{
 /* ---------------- ffmpeg engine ---------------- */
 async function ensureFFmpeg(logFn){
   if(ffmpegLoaded) return;
-  ffmpeg = new FFmpeg();
+  // O worker interno do ffmpeg.wasm precisa ser "mesma origem".
+  // Como carregamos a biblioteca via CDN (unpkg), buscamos o worker.js
+  // e o recriamos como blob: URL, que o navegador trata como mesma origem.
+  const classWorkerURL = await toBlobURL(
+    'https://unpkg.com/@ffmpeg/ffmpeg@0.12.10/dist/esm/worker.js',
+    'text/javascript'
+  );
+  ffmpeg = new FFmpeg({ classWorkerURL });
   ffmpeg.on('log', ({message}) => logFn(message));
   const baseURL = 'https://unpkg.com/@ffmpeg/core@0.12.6/dist/esm';
   await ffmpeg.load({
@@ -908,7 +927,15 @@ async function runProcess(){
     appendLog('ERRO: ' + (err && err.message ? err.message : String(err)));
     $('progressLabel').textContent = 'Ocorreu um erro — veja o log técnico';
     $('processBtn').disabled = false;
-    alert('Ocorreu um erro ao gerar o vídeo. Abra o "log técnico" para detalhes. Dica: tente uma resolução menor ou verifique sua conexão (o motor ffmpeg precisa ser baixado na primeira vez).');
+    const msg = (err && err.message) ? err.message : String(err);
+    if(location.protocol === 'file:'){
+      document.getElementById('fileProtocolBanner').style.display = 'block';
+      alert('Este arquivo precisa ser aberto por um servidor local (http://localhost), não direto como arquivo (file://). Veja as instruções no aviso vermelho no topo da página.');
+    } else if(/Worker|cannot be accessed from origin/i.test(msg)){
+      alert('Falha ao iniciar o motor ffmpeg (erro de Worker). Tente recarregar a página. Se persistir, verifique se algum bloqueador de anúncios/extensão está bloqueando scripts de unpkg.com.');
+    } else {
+      alert('Ocorreu um erro ao gerar o vídeo. Abra o "log técnico" para detalhes. Dica: tente uma resolução menor ou verifique sua conexão (o motor ffmpeg precisa ser baixado na primeira vez).');
+    }
   } finally {
     stopVU();
   }
