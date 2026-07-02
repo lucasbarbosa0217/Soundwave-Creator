@@ -1,0 +1,918 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Console de Onda Sonora — MP3/WAV → MP4/WebM</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@600;700;800&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#131211;
+    --bg-2:#1a1917;
+    --surface:#1e1c19;
+    --surface-2:#242220;
+    --line:#37342f;
+    --line-soft:#2a2825;
+    --text:#f2ede1;
+    --text-muted:#9a9488;
+    --text-dim:#6b6659;
+    --amber:#f2a93b;
+    --amber-dim:#8a611f;
+    --teal:#3fe0c5;
+    --teal-dim:#1f6e60;
+    --danger:#e15a4e;
+    --radius:10px;
+    --mono:'IBM Plex Mono', monospace;
+    --display:'Big Shoulders Display', sans-serif;
+    --body:'Inter', sans-serif;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:
+      radial-gradient(1200px 600px at 15% -10%, rgba(242,169,59,0.08), transparent 60%),
+      radial-gradient(1000px 500px at 100% 0%, rgba(63,224,197,0.06), transparent 55%),
+      var(--bg);
+    color:var(--text);
+    font-family:var(--body);
+    min-height:100vh;
+    -webkit-font-smoothing:antialiased;
+  }
+  ::selection{background:var(--amber);color:#141210;}
+  a{color:var(--teal);}
+
+  .wrap{max-width:980px;margin:0 auto;padding:32px 20px 80px;}
+
+  /* ---------- HERO ---------- */
+  .hero{
+    border:1px solid var(--line);
+    border-radius:14px;
+    background:linear-gradient(180deg, var(--bg-2), var(--surface));
+    padding:28px 28px 22px;
+    margin-bottom:22px;
+    position:relative;
+    overflow:hidden;
+  }
+  .hero-top{display:flex;align-items:baseline;justify-content:space-between;gap:16px;flex-wrap:wrap;}
+  .eyebrow{
+    font-family:var(--mono);
+    font-size:11px;
+    letter-spacing:.16em;
+    text-transform:uppercase;
+    color:var(--teal);
+    display:flex;align-items:center;gap:8px;
+  }
+  .eyebrow .dot{width:6px;height:6px;border-radius:50%;background:var(--teal);box-shadow:0 0 8px var(--teal);animation:pulse 2s ease-in-out infinite;}
+  @keyframes pulse{0%,100%{opacity:1;}50%{opacity:.35;}}
+  h1{
+    font-family:var(--display);
+    font-weight:800;
+    font-size:clamp(28px,5vw,44px);
+    letter-spacing:.01em;
+    line-height:1.02;
+    margin:6px 0 8px;
+    text-transform:uppercase;
+  }
+  h1 span{color:var(--amber);}
+  .subtitle{color:var(--text-muted);font-size:14.5px;max-width:58ch;line-height:1.55;margin:0 0 18px;}
+  .scope{height:64px;border-radius:8px;background:var(--bg);border:1px solid var(--line-soft);overflow:hidden;position:relative;}
+  .scope svg{width:100%;height:100%;display:block;}
+  .scope-glow{stroke:var(--amber);stroke-width:1.6;fill:none;filter:drop-shadow(0 0 5px rgba(242,169,59,.55));}
+
+  /* ---------- PANEL / SECTION ---------- */
+  .panel{
+    border:1px solid var(--line);
+    border-radius:var(--radius);
+    background:var(--surface);
+    margin-bottom:16px;
+    overflow:hidden;
+  }
+  .panel-head{
+    display:flex;align-items:center;gap:10px;
+    padding:13px 18px;
+    border-bottom:1px solid var(--line-soft);
+    background:var(--surface-2);
+  }
+  .panel-head .idx{
+    font-family:var(--mono);font-size:11px;color:var(--bg);
+    background:var(--amber);
+    width:20px;height:20px;border-radius:4px;
+    display:flex;align-items:center;justify-content:center;font-weight:600;flex-shrink:0;
+  }
+  .panel-head h2{
+    font-family:var(--display);font-size:18px;letter-spacing:.03em;text-transform:uppercase;
+    margin:0;font-weight:700;
+  }
+  .panel-head .hint{margin-left:auto;font-family:var(--mono);font-size:11px;color:var(--text-dim);}
+  .panel-body{padding:18px;}
+
+  /* ---------- DROPZONE ---------- */
+  .dropzone{
+    border:1.5px dashed var(--line);
+    border-radius:8px;
+    padding:26px 18px;
+    text-align:center;
+    cursor:pointer;
+    transition:.15s border-color, .15s background;
+    background:var(--bg);
+  }
+  .dropzone:hover, .dropzone.drag{border-color:var(--teal);background:rgba(63,224,197,0.04);}
+  .dropzone .icon{font-size:26px;margin-bottom:6px;opacity:.8;}
+  .dropzone strong{color:var(--text);}
+  .dropzone .small{display:block;margin-top:4px;font-size:12.5px;color:var(--text-dim);}
+  input[type=file]{display:none;}
+
+  .filecard{
+    display:flex;align-items:center;gap:14px;
+    border:1px solid var(--line-soft);border-radius:8px;
+    padding:12px 14px;background:var(--bg);
+  }
+  .filecard .swatch{
+    width:38px;height:38px;border-radius:6px;flex-shrink:0;
+    background:linear-gradient(135deg,var(--amber),var(--teal));
+    display:flex;align-items:center;justify-content:center;font-size:16px;color:#141210;font-weight:700;
+  }
+  .filecard .meta{flex:1;min-width:0;}
+  .filecard .fname{font-weight:600;font-size:13.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .filecard .fsub{font-family:var(--mono);font-size:11.5px;color:var(--text-dim);margin-top:2px;}
+  .filecard button{
+    background:none;border:1px solid var(--line);color:var(--text-muted);
+    border-radius:6px;padding:6px 10px;font-size:12px;cursor:pointer;font-family:var(--body);
+  }
+  .filecard button:hover{border-color:var(--danger);color:var(--danger);}
+  audio{width:100%;margin-top:12px;height:34px;}
+
+  /* ---------- CONTROLS GRID ---------- */
+  .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:16px;}
+  .field{display:flex;flex-direction:column;gap:6px;}
+  .field label{
+    font-family:var(--mono);font-size:11px;letter-spacing:.05em;text-transform:uppercase;color:var(--text-muted);
+    display:flex;align-items:center;justify-content:space-between;
+  }
+  .field label .val{color:var(--amber);font-weight:600;}
+  select, input[type=text], input[type=number]{
+    background:var(--bg);border:1px solid var(--line);color:var(--text);
+    border-radius:6px;padding:9px 10px;font-size:13.5px;font-family:var(--body);
+    outline:none;
+  }
+  select:focus, input:focus{border-color:var(--teal);}
+  input[type=range]{
+    -webkit-appearance:none;appearance:none;width:100%;height:4px;border-radius:3px;
+    background:var(--line);outline:none;
+  }
+  input[type=range]::-webkit-slider-thumb{
+    -webkit-appearance:none;width:15px;height:15px;border-radius:50%;
+    background:var(--amber);cursor:pointer;border:2px solid var(--bg);box-shadow:0 0 0 1px var(--amber);
+  }
+  input[type=color]{
+    -webkit-appearance:none;appearance:none;width:44px;height:32px;border:1px solid var(--line);
+    border-radius:6px;background:var(--bg);cursor:pointer;padding:2px;
+  }
+  input[type=color]::-webkit-color-swatch{border-radius:4px;border:none;}
+  .row-inline{display:flex;align-items:center;gap:10px;}
+
+  .segmented{display:flex;border:1px solid var(--line);border-radius:6px;overflow:hidden;}
+  .segmented button{
+    flex:1;background:var(--bg);border:none;color:var(--text-muted);
+    padding:9px 6px;font-size:12.5px;cursor:pointer;font-family:var(--body);font-weight:500;
+    border-right:1px solid var(--line);transition:.12s;
+  }
+  .segmented button:last-child{border-right:none;}
+  .segmented button.active{background:var(--amber);color:#141210;font-weight:700;}
+  .segmented button:not(.active):hover{background:var(--surface-2);color:var(--text);}
+
+  .toggle-row{display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--line-soft);}
+  .toggle-row:last-child{border-bottom:none;}
+  .toggle-row .tlabel{font-size:13.5px;font-weight:500;}
+  .toggle-row .tdesc{font-size:11.5px;color:var(--text-dim);margin-top:2px;}
+  .switch{position:relative;width:40px;height:22px;flex-shrink:0;}
+  .switch input{opacity:0;width:0;height:0;}
+  .slider-toggle{
+    position:absolute;cursor:pointer;inset:0;background:var(--line);border-radius:20px;transition:.15s;
+  }
+  .slider-toggle:before{
+    content:"";position:absolute;height:16px;width:16px;left:3px;top:3px;
+    background:var(--text-dim);border-radius:50%;transition:.15s;
+  }
+  .switch input:checked + .slider-toggle{background:var(--teal-dim);}
+  .switch input:checked + .slider-toggle:before{transform:translateX(18px);background:var(--teal);}
+
+  .presets{display:flex;flex-wrap:wrap;gap:8px;}
+  .preset-chip{
+    font-family:var(--mono);font-size:11.5px;padding:7px 12px;border-radius:20px;
+    border:1px solid var(--line);background:var(--bg);color:var(--text-muted);cursor:pointer;
+  }
+  .preset-chip:hover{border-color:var(--amber);color:var(--amber);}
+
+  .notice{
+    display:flex;gap:10px;align-items:flex-start;
+    border:1px solid var(--line-soft);border-left:3px solid var(--amber);
+    background:rgba(242,169,59,0.06);border-radius:6px;padding:10px 12px;font-size:12.5px;color:var(--text-muted);line-height:1.5;
+  }
+  .notice.teal{border-left-color:var(--teal);background:rgba(63,224,197,0.06);}
+  .notice b{color:var(--text);}
+
+  /* ---------- ACTION / PROGRESS ---------- */
+  .action-bar{display:flex;align-items:center;gap:14px;flex-wrap:wrap;}
+  .btn{
+    font-family:var(--display);font-weight:700;letter-spacing:.03em;text-transform:uppercase;
+    font-size:15px;padding:14px 26px;border-radius:8px;border:none;cursor:pointer;
+    background:var(--amber);color:#141210;transition:.12s transform, .12s box-shadow;
+  }
+  .btn:hover:not(:disabled){transform:translateY(-1px);box-shadow:0 4px 14px rgba(242,169,59,.25);}
+  .btn:disabled{opacity:.4;cursor:not-allowed;}
+  .btn.secondary{background:transparent;border:1px solid var(--line);color:var(--text);}
+  .btn.secondary:hover:not(:disabled){border-color:var(--teal);color:var(--teal);}
+
+  .progress-wrap{display:none;margin-top:16px;}
+  .progress-wrap.show{display:block;}
+  .progress-status{display:flex;justify-content:space-between;font-family:var(--mono);font-size:11.5px;color:var(--text-muted);margin-bottom:6px;}
+  .progress-track{height:8px;border-radius:4px;background:var(--bg);border:1px solid var(--line-soft);overflow:hidden;}
+  .progress-fill{
+    height:100%;width:0%;border-radius:4px;
+    background:linear-gradient(90deg,var(--teal-dim),var(--teal),var(--amber));
+    transition:width .25s ease;
+  }
+  .vu{display:flex;gap:2px;height:14px;margin-top:8px;align-items:flex-end;}
+  .vu i{flex:1;background:var(--line);border-radius:1px;height:20%;transition:height .1s;}
+
+  .log-toggle{font-family:var(--mono);font-size:11px;color:var(--text-dim);cursor:pointer;text-decoration:underline;margin-top:10px;display:inline-block;}
+  .log-box{
+    display:none;background:#0d0c0b;border:1px solid var(--line-soft);border-radius:6px;
+    padding:10px 12px;margin-top:8px;max-height:170px;overflow-y:auto;
+    font-family:var(--mono);font-size:11px;color:#8fae9b;white-space:pre-wrap;line-height:1.5;
+  }
+  .log-box.show{display:block;}
+
+  /* ---------- OUTPUT ---------- */
+  .output-panel{display:none;}
+  .output-panel.show{display:block;}
+  .checker{
+    background-image:
+      linear-gradient(45deg,#2b2926 25%,transparent 25%),
+      linear-gradient(-45deg,#2b2926 25%,transparent 25%),
+      linear-gradient(45deg,transparent 75%,#2b2926 75%),
+      linear-gradient(-45deg,transparent 75%,#2b2926 75%);
+    background-size:20px 20px;
+    background-position:0 0,0 10px,10px -10px,-10px 0px;
+    background-color:#1a1917;
+    border-radius:8px;
+    overflow:hidden;border:1px solid var(--line-soft);
+  }
+  video{width:100%;display:block;max-height:480px;background:transparent;}
+  .out-meta{display:flex;justify-content:space-between;align-items:center;margin-top:12px;flex-wrap:wrap;gap:10px;}
+  .out-meta .pill{font-family:var(--mono);font-size:11.5px;color:var(--text-muted);background:var(--bg);border:1px solid var(--line-soft);padding:5px 10px;border-radius:20px;}
+
+  footer{text-align:center;color:var(--text-dim);font-size:11.5px;font-family:var(--mono);margin-top:30px;line-height:1.7;}
+  footer a{color:var(--text-dim);}
+
+  @media (max-width:600px){
+    .wrap{padding:18px 14px 60px;}
+    .hero{padding:20px 18px;}
+    .panel-body{padding:14px;}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <!-- HERO -->
+  <div class="hero">
+    <div class="hero-top">
+      <span class="eyebrow"><span class="dot"></span> ffmpeg.wasm · 100% no navegador</span>
+    </div>
+    <h1>Console de <span>Onda&nbsp;Sonora</span></h1>
+    <p class="subtitle">Envie um MP3 ou WAV e transforme em vídeo de forma de onda animada — com fundo transparente (WebM+alfa) ou opaco (MP4). Tudo processado localmente no seu navegador, nada é enviado para nenhum servidor.</p>
+    <div class="scope"><svg id="scopeSvg" viewBox="0 0 600 64" preserveAspectRatio="none"><path class="scope-glow" id="scopePath" d="M0,32 L600,32"/></svg></div>
+  </div>
+
+  <!-- 1. ARQUIVO -->
+  <div class="panel">
+    <div class="panel-head"><span class="idx">1</span><h2>Áudio de Origem</h2><span class="hint">MP3 · WAV</span></div>
+    <div class="panel-body">
+      <div id="dropzone" class="dropzone">
+        <div class="icon">🎧</div>
+        <strong>Arraste um arquivo de áudio aqui</strong>
+        <span class="small">ou clique para escolher · MP3 / WAV</span>
+        <input type="file" id="fileInput" accept="audio/mpeg,audio/wav,audio/x-wav,audio/mp3,.mp3,.wav">
+      </div>
+      <div id="fileCardWrap" style="display:none;margin-top:12px;">
+        <div class="filecard">
+          <div class="swatch">♪</div>
+          <div class="meta">
+            <div class="fname" id="fName">—</div>
+            <div class="fsub" id="fMeta">—</div>
+          </div>
+          <button id="removeFile">Remover</button>
+        </div>
+        <audio id="audioPreview" controls></audio>
+      </div>
+    </div>
+  </div>
+
+  <!-- 2. PRESETS -->
+  <div class="panel">
+    <div class="panel-head"><span class="idx">2</span><h2>Estilos Rápidos</h2><span class="hint">opcional</span></div>
+    <div class="panel-body">
+      <div class="presets">
+        <button class="preset-chip" data-preset="podcast">🎙 Podcast Clássico</button>
+        <button class="preset-chip" data-preset="neon">⚡ Neon Noturno</button>
+        <button class="preset-chip" data-preset="minimal">◻ Minimalista Transparente</button>
+        <button class="preset-chip" data-preset="story">📱 Story Vertical</button>
+        <button class="preset-chip" data-preset="vu">🌈 VU Arco-íris</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 3. VISUAL -->
+  <div class="panel">
+    <div class="panel-head"><span class="idx">3</span><h2>Aparência da Onda</h2></div>
+    <div class="panel-body">
+      <div class="grid">
+        <div class="field">
+          <label>Estilo do traço</label>
+          <div class="segmented" id="modeSeg">
+            <button data-v="line" class="active">Linha</button>
+            <button data-v="p2p">Ponto-a-Ponto</button>
+            <button data-v="point">Pontos</button>
+            <button data-v="cline">Colorida</button>
+          </div>
+        </div>
+        <div class="field">
+          <label>Cor da onda</label>
+          <div class="row-inline">
+            <input type="color" id="waveColor" value="#f2a93b">
+            <span id="waveColorHex" style="font-family:var(--mono);font-size:12px;color:var(--text-muted);">#F2A93B</span>
+          </div>
+        </div>
+        <div class="field">
+          <label>Escala de amplitude</label>
+          <select id="scaleMode">
+            <option value="lin">Linear</option>
+            <option value="log">Logarítmica</option>
+            <option value="sqrt">Raiz quadrada</option>
+            <option value="cbrt">Raiz cúbica</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>Nível de detalhe <span class="val" id="detailVal">Automático</span></label>
+          <input type="range" id="detailLevel" min="0" max="30" value="0">
+        </div>
+      </div>
+
+      <div style="margin-top:14px;">
+        <div class="toggle-row">
+          <div><div class="tlabel">Efeito arco-íris animado</div><div class="tdesc">A cor da onda gira pelo espectro ao longo do tempo</div></div>
+          <label class="switch"><input type="checkbox" id="rainbowToggle"><span class="slider-toggle"></span></label>
+        </div>
+        <div class="toggle-row">
+          <div><div class="tlabel">Espelhar (efeito montanha)</div><div class="tdesc">Duplica a onda espelhada acima/abaixo do centro</div></div>
+          <label class="switch"><input type="checkbox" id="mirrorToggle"></label>
+        </div>
+        <div class="toggle-row">
+          <div><div class="tlabel">Dividir canais estéreo</div><div class="tdesc">Mostra canal esquerdo e direito separadamente</div></div>
+          <label class="switch"><input type="checkbox" id="splitToggle"><span class="slider-toggle"></span></label>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 4. FUNDO -->
+  <div class="panel">
+    <div class="panel-head"><span class="idx">4</span><h2>Fundo do Vídeo</h2></div>
+    <div class="panel-body">
+      <div class="field" style="margin-bottom:14px;">
+        <label>Tipo de fundo</label>
+        <div class="segmented" id="bgSeg">
+          <button data-v="transparent" class="active">Transparente</button>
+          <button data-v="solid">Cor Sólida</button>
+          <button data-v="image">Imagem</button>
+        </div>
+      </div>
+
+      <div id="bgSolidField" class="field" style="display:none;max-width:220px;margin-bottom:10px;">
+        <label>Cor de fundo</label>
+        <div class="row-inline">
+          <input type="color" id="bgColor" value="#141210">
+          <span id="bgColorHex" style="font-family:var(--mono);font-size:12px;color:var(--text-muted);">#141210</span>
+          <button class="preset-chip" id="greenScreenBtn" style="margin-left:auto;">Fundo verde (chroma key)</button>
+        </div>
+      </div>
+
+      <div id="bgImageField" style="display:none;margin-bottom:10px;">
+        <div id="bgImageDrop" class="dropzone" style="padding:16px;">
+          <span class="small" style="margin:0;">Clique para escolher uma imagem de fundo (JPG/PNG)</span>
+          <input type="file" id="bgImageInput" accept="image/*">
+        </div>
+        <div id="bgImageName" style="font-family:var(--mono);font-size:11.5px;color:var(--text-dim);margin-top:6px;"></div>
+      </div>
+
+      <div class="notice" id="transparentNotice">
+        <span>ℹ️</span>
+        <div><b>MP4 (H.264) não suporta canal alfa.</b> Para transparência real, o vídeo é exportado em <b>WebM (VP9)</b>, compatível com Premiere, After Effects, DaVinci Resolve, OBS e tags &lt;video&gt; em sites. Se você precisa de <b>.mp4</b> mesmo assim, use "Fundo verde" acima e remova o verde no seu editor (chroma key).</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 5. SAÍDA -->
+  <div class="panel">
+    <div class="panel-head"><span class="idx">5</span><h2>Formato de Saída</h2></div>
+    <div class="panel-body">
+      <div class="grid">
+        <div class="field">
+          <label>Resolução</label>
+          <select id="resPreset">
+            <option value="1920x1080">1920×1080 — Widescreen (16:9)</option>
+            <option value="1280x720">1280×720 — HD (16:9)</option>
+            <option value="1080x1080">1080×1080 — Quadrado (1:1)</option>
+            <option value="1080x1920">1080×1920 — Story/Reels (9:16)</option>
+            <option value="custom">Personalizado…</option>
+          </select>
+        </div>
+        <div class="field" id="customResField" style="display:none;">
+          <label>Largura × Altura</label>
+          <div class="row-inline">
+            <input type="number" id="customW" value="1280" min="64" max="3840" style="width:90px;">
+            <span style="color:var(--text-dim);">×</span>
+            <input type="number" id="customH" value="720" min="64" max="3840" style="width:90px;">
+          </div>
+        </div>
+        <div class="field">
+          <label>Quadros por segundo</label>
+          <div class="segmented" id="fpsSeg">
+            <button data-v="24">24</button>
+            <button data-v="30" class="active">30</button>
+            <button data-v="60">60</button>
+          </div>
+        </div>
+        <div class="field">
+          <label>Formato do arquivo</label>
+          <div class="segmented" id="formatSeg">
+            <button data-v="webm" class="active">WebM (alfa)</button>
+            <button data-v="mp4">MP4 (H.264)</button>
+          </div>
+        </div>
+        <div class="field">
+          <label>Qualidade <span class="val" id="qualityVal">Alta</span></label>
+          <input type="range" id="qualitySlider" min="0" max="2" value="1" step="1">
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 6. PROCESSAR -->
+  <div class="panel">
+    <div class="panel-head"><span class="idx">6</span><h2>Gerar Vídeo</h2></div>
+    <div class="panel-body">
+      <div class="action-bar">
+        <button class="btn" id="processBtn" disabled>Gerar vídeo</button>
+        <button class="btn secondary" id="cancelBtn" style="display:none;">Cancelar</button>
+        <span id="engineNote" style="font-family:var(--mono);font-size:11px;color:var(--text-dim);">Motor ffmpeg é baixado (~30&nbsp;MB) na primeira geração.</span>
+      </div>
+
+      <div class="progress-wrap" id="progressWrap">
+        <div class="progress-status">
+          <span id="progressLabel">Preparando…</span>
+          <span id="progressPct">0%</span>
+        </div>
+        <div class="progress-track"><div class="progress-fill" id="progressFill"></div></div>
+        <div class="vu" id="vuMeter"></div>
+        <span class="log-toggle" id="logToggle">mostrar log técnico ▾</span>
+        <div class="log-box" id="logBox"></div>
+      </div>
+
+      <div class="output-panel" id="outputPanel">
+        <div style="margin-top:18px;">
+          <div class="checker"><video id="outputVideo" controls loop></video></div>
+          <div class="out-meta">
+            <div style="display:flex;gap:8px;flex-wrap:wrap;">
+              <span class="pill" id="outSize">—</span>
+              <span class="pill" id="outRes">—</span>
+              <span class="pill" id="outFormat">—</span>
+            </div>
+            <div style="display:flex;gap:10px;">
+              <a id="downloadBtn" class="btn" download style="text-decoration:none;display:inline-block;">Baixar vídeo</a>
+              <button class="btn secondary" id="regenBtn">Gerar outro</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <footer>
+    Processamento 100% local via WebAssembly (ffmpeg.wasm) · nenhum áudio sai do seu navegador<br>
+    Requer conexão com a internet apenas para baixar o motor ffmpeg na primeira vez.
+  </footer>
+</div>
+
+<script type="module">
+import { FFmpeg } from 'https://unpkg.com/@ffmpeg/ffmpeg@0.12.10/dist/esm/index.js';
+import { fetchFile, toBlobURL } from 'https://unpkg.com/@ffmpeg/util@0.12.1/dist/esm/index.js';
+
+/* ---------------- state ---------------- */
+const state = {
+  audioFile: null,
+  bgImageFile: null,
+  mode: 'line',
+  waveColor: '#f2a93b',
+  scaleMode: 'lin',
+  detail: 0,
+  rainbow: false,
+  mirror: false,
+  split: false,
+  bgType: 'transparent',
+  bgColor: '#141210',
+  resPreset: '1920x1080',
+  customW: 1280,
+  customH: 720,
+  fps: 30,
+  format: 'webm',
+  quality: 1, // 0 low, 1 high, 2 max
+};
+
+let ffmpeg = null;
+let ffmpegLoaded = false;
+let outputBlobUrl = null;
+
+/* ---------------- helpers ---------------- */
+const $ = (id) => document.getElementById(id);
+function fmtBytes(b){
+  if(b < 1024) return b + ' B';
+  if(b < 1024*1024) return (b/1024).toFixed(1) + ' KB';
+  return (b/(1024*1024)).toFixed(2) + ' MB';
+}
+function fmtTime(s){
+  if(!isFinite(s)) return '--:--';
+  const m = Math.floor(s/60), r = Math.floor(s%60);
+  return String(m).padStart(2,'0') + ':' + String(r).padStart(2,'0');
+}
+function hexNoHash(hex){ return '0x' + hex.replace('#','').toUpperCase(); }
+
+/* ---------------- scope animation (decorative) ---------------- */
+(function animateScope(){
+  const path = $('scopePath');
+  let t = 0;
+  function draw(){
+    t += 0.045;
+    let d = 'M0,32 ';
+    const pts = 40;
+    for(let i=0;i<=pts;i++){
+      const x = (600/pts)*i;
+      const amp = 18 * Math.sin(i*0.6 + t) * Math.exp(-Math.pow((i-pts/2)/ (pts*0.6),2)) + 4*Math.sin(i*1.3 - t*1.7);
+      d += `L${x.toFixed(1)},${(32+amp).toFixed(1)} `;
+    }
+    path.setAttribute('d', d);
+    requestAnimationFrame(draw);
+  }
+  draw();
+})();
+
+/* ---------------- file input: audio ---------------- */
+const dropzone = $('dropzone');
+const fileInput = $('fileInput');
+dropzone.addEventListener('click', ()=>fileInput.click());
+['dragenter','dragover'].forEach(ev=>dropzone.addEventListener(ev, e=>{e.preventDefault();dropzone.classList.add('drag');}));
+['dragleave','drop'].forEach(ev=>dropzone.addEventListener(ev, e=>{e.preventDefault();dropzone.classList.remove('drag');}));
+dropzone.addEventListener('drop', e=>{
+  const f = e.dataTransfer.files[0];
+  if(f) handleAudioFile(f);
+});
+fileInput.addEventListener('change', e=>{
+  if(e.target.files[0]) handleAudioFile(e.target.files[0]);
+});
+$('removeFile').addEventListener('click', ()=>{
+  state.audioFile = null;
+  $('fileCardWrap').style.display = 'none';
+  dropzone.style.display = 'block';
+  $('processBtn').disabled = true;
+});
+
+function handleAudioFile(f){
+  const okTypes = /\.(mp3|wav)$/i;
+  if(!okTypes.test(f.name)){
+    alert('Por favor envie um arquivo .mp3 ou .wav');
+    return;
+  }
+  state.audioFile = f;
+  const url = URL.createObjectURL(f);
+  const audioEl = $('audioPreview');
+  audioEl.src = url;
+  audioEl.onloadedmetadata = () => {
+    $('fMeta').textContent = `${fmtBytes(f.size)} · ${fmtTime(audioEl.duration)}`;
+  };
+  $('fName').textContent = f.name;
+  $('fMeta').textContent = fmtBytes(f.size);
+  $('fileCardWrap').style.display = 'block';
+  dropzone.style.display = 'none';
+  $('processBtn').disabled = false;
+}
+
+/* ---------------- bg image input ---------------- */
+$('bgImageDrop').addEventListener('click', ()=>$('bgImageInput').click());
+$('bgImageInput').addEventListener('change', e=>{
+  const f = e.target.files[0];
+  if(f){
+    state.bgImageFile = f;
+    $('bgImageName').textContent = `✓ ${f.name} (${fmtBytes(f.size)})`;
+  }
+});
+
+/* ---------------- segmented controls ---------------- */
+function wireSegmented(id, onSelect){
+  const el = $(id);
+  el.querySelectorAll('button').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      el.querySelectorAll('button').forEach(b=>b.classList.remove('active'));
+      btn.classList.add('active');
+      onSelect(btn.dataset.v);
+    });
+  });
+}
+wireSegmented('modeSeg', v => state.mode = v);
+wireSegmented('fpsSeg', v => state.fps = parseInt(v));
+wireSegmented('formatSeg', v => { state.format = v; syncFormatBgLogic(); });
+wireSegmented('bgSeg', v => { state.bgType = v; syncBgFields(); syncFormatBgLogic(); });
+
+function syncBgFields(){
+  $('bgSolidField').style.display = state.bgType === 'solid' ? 'flex' : 'none';
+  $('bgImageField').style.display = state.bgType === 'image' ? 'block' : 'none';
+  $('transparentNotice').style.display = state.bgType === 'transparent' ? 'flex' : 'none';
+}
+function syncFormatBgLogic(){
+  // if transparent bg chosen, force format to webm
+  if(state.bgType === 'transparent' && state.format !== 'webm'){
+    state.format = 'webm';
+    $('formatSeg').querySelectorAll('button').forEach(b=>b.classList.toggle('active', b.dataset.v==='webm'));
+  }
+}
+syncBgFields();
+
+/* ---------------- color pickers ---------------- */
+$('waveColor').addEventListener('input', e=>{
+  state.waveColor = e.target.value;
+  $('waveColorHex').textContent = e.target.value.toUpperCase();
+});
+$('bgColor').addEventListener('input', e=>{
+  state.bgColor = e.target.value;
+  $('bgColorHex').textContent = e.target.value.toUpperCase();
+});
+$('greenScreenBtn').addEventListener('click', ()=>{
+  state.bgColor = '#00ff00';
+  $('bgColor').value = '#00ff00';
+  $('bgColorHex').textContent = '#00FF00';
+});
+
+/* ---------------- toggles / selects ---------------- */
+$('rainbowToggle').addEventListener('change', e=>state.rainbow = e.target.checked);
+$('mirrorToggle').addEventListener('change', e=>state.mirror = e.target.checked);
+$('splitToggle').addEventListener('change', e=>state.split = e.target.checked);
+$('scaleMode').addEventListener('change', e=>state.scaleMode = e.target.value);
+$('detailLevel').addEventListener('input', e=>{
+  state.detail = parseInt(e.target.value);
+  $('detailVal').textContent = state.detail === 0 ? 'Automático' : state.detail;
+});
+$('qualitySlider').addEventListener('input', e=>{
+  state.quality = parseInt(e.target.value);
+  $('qualityVal').textContent = ['Rápida','Alta','Máxima'][state.quality];
+});
+$('resPreset').addEventListener('change', e=>{
+  state.resPreset = e.target.value;
+  $('customResField').style.display = e.target.value === 'custom' ? 'flex' : 'none';
+});
+$('customW').addEventListener('input', e=>state.customW = parseInt(e.target.value)||1280);
+$('customH').addEventListener('input', e=>state.customH = parseInt(e.target.value)||720);
+
+/* ---------------- presets ---------------- */
+const presets = {
+  podcast: {mode:'line', waveColor:'#f2a93b', scaleMode:'lin', rainbow:false, mirror:true, split:false, bgType:'solid', bgColor:'#141210', format:'mp4', resPreset:'1920x1080'},
+  neon: {mode:'cline', waveColor:'#3fe0c5', scaleMode:'log', rainbow:false, mirror:true, split:false, bgType:'solid', bgColor:'#0a0a12', format:'mp4', resPreset:'1920x1080'},
+  minimal: {mode:'line', waveColor:'#ffffff', scaleMode:'lin', rainbow:false, mirror:false, split:false, bgType:'transparent', format:'webm', resPreset:'1920x1080'},
+  story: {mode:'p2p', waveColor:'#f2a93b', scaleMode:'sqrt', rainbow:false, mirror:true, split:false, bgType:'transparent', format:'webm', resPreset:'1080x1920'},
+  vu: {mode:'cline', waveColor:'#f2a93b', scaleMode:'lin', rainbow:true, mirror:true, split:true, bgType:'solid', bgColor:'#141210', format:'mp4', resPreset:'1080x1080'},
+};
+document.querySelectorAll('.preset-chip[data-preset]').forEach(chip=>{
+  chip.addEventListener('click', ()=>{
+    const p = presets[chip.dataset.preset];
+    Object.assign(state, p);
+    // reflect in UI
+    $('waveColor').value = state.waveColor; $('waveColorHex').textContent = state.waveColor.toUpperCase();
+    if(state.bgColor){ $('bgColor').value = state.bgColor; $('bgColorHex').textContent = state.bgColor.toUpperCase(); }
+    $('scaleMode').value = state.scaleMode;
+    $('rainbowToggle').checked = state.rainbow;
+    $('mirrorToggle').checked = state.mirror;
+    $('splitToggle').checked = state.split;
+    $('resPreset').value = state.resPreset;
+    $('customResField').style.display = 'none';
+    ['modeSeg','fpsSeg','formatSeg','bgSeg'].forEach(segId=>{
+      const map = {modeSeg:'mode', fpsSeg:'fps', formatSeg:'format', bgSeg:'bgType'};
+      const key = map[segId];
+      $(segId).querySelectorAll('button').forEach(b=>b.classList.toggle('active', b.dataset.v == state[key]));
+    });
+    syncBgFields();
+  });
+});
+
+/* ---------------- ffmpeg engine ---------------- */
+async function ensureFFmpeg(logFn){
+  if(ffmpegLoaded) return;
+  ffmpeg = new FFmpeg();
+  ffmpeg.on('log', ({message}) => logFn(message));
+  const baseURL = 'https://unpkg.com/@ffmpeg/core@0.12.6/dist/esm';
+  await ffmpeg.load({
+    coreURL: await toBlobURL(`${baseURL}/ffmpeg-core.js`, 'text/javascript'),
+    wasmURL: await toBlobURL(`${baseURL}/ffmpeg-core.wasm`, 'application/wasm'),
+  });
+  ffmpegLoaded = true;
+}
+
+/* ---------------- filter graph builder ---------------- */
+function getResolution(){
+  if(state.resPreset === 'custom') return [state.customW, state.customH];
+  return state.resPreset.split('x').map(Number);
+}
+function qualityToCrf(){
+  // lower crf = higher quality/bigger file
+  return [34, 23, 15][state.quality];
+}
+
+function buildArgs(){
+  const [W, H] = getResolution();
+  const fps = state.fps;
+  const hasImageBg = state.bgType === 'image' && state.bgImageFile;
+  const transparent = state.bgType === 'transparent';
+  const format = transparent ? 'webm' : state.format;
+
+  const waveH = state.mirror ? Math.floor(H/2) : H;
+  const colorHex = hexNoHash(state.waveColor);
+
+  let chain = `[0:a]aformat=channel_layouts=stereo,showwaves=s=${W}x${waveH}:mode=${state.mode}:colors=${colorHex}:rate=${fps}:scale=${state.scaleMode}:split_channels=${state.split?1:0}`;
+  if(state.detail > 0) chain += `:n=${state.detail}`;
+  chain += `[wraw]`;
+
+  const parts = [chain];
+
+  let waveLabel = 'wraw';
+  if(state.rainbow){
+    parts.push(`[${waveLabel}]hue=H='2*PI*mod(t/8\\,1)':s=6[whue]`);
+    waveLabel = 'whue';
+  }
+
+  if(state.mirror){
+    parts.push(`[${waveLabel}]split=2[wm1][wm2]`);
+    parts.push(`[wm2]vflip[wm2f]`);
+    parts.push(`[wm1][wm2f]vstack=inputs=2[wstack]`);
+    waveLabel = 'wstack';
+  }
+
+  parts.push(`[${waveLabel}]format=rgba,colorkey=0x000000:0.14:0.06,scale=${W}:${H}[wkey]`);
+
+  let bgFilter;
+  if(transparent){
+    bgFilter = `color=c=black@0.0:s=${W}x${H}:r=${fps}[bg]`;
+  } else if(hasImageBg){
+    bgFilter = `[1:v]scale=${W}:${H}:force_original_aspect_ratio=increase,crop=${W}:${H},setsar=1,fps=${fps}[bg]`;
+  } else {
+    bgFilter = `color=c=${hexNoHash(state.bgColor)}:s=${W}x${H}:r=${fps}[bg]`;
+  }
+  parts.push(bgFilter);
+  parts.push(`[bg][wkey]overlay=format=auto:shortest=1[vout]`);
+
+  const filterComplex = parts.join(';');
+
+  const finalInputArgs = [];
+  finalInputArgs.push('-i', 'input_audio');
+  if(hasImageBg){
+    finalInputArgs.push('-loop', '1', '-i', 'bg_image');
+  }
+
+  const crf = qualityToCrf();
+  const outName = format === 'webm' ? 'output.webm' : 'output.mp4';
+
+  let codecArgs;
+  if(format === 'webm'){
+    codecArgs = ['-c:v','libvpx-vp9','-pix_fmt','yuva420p','-crf',String(crf+8),'-b:v','0','-auto-alt-ref','0','-c:a','libopus','-b:a','160k'];
+  } else {
+    codecArgs = ['-c:v','libx264','-pix_fmt','yuv420p','-crf',String(crf),'-preset','veryfast','-c:a','aac','-b:a','192k'];
+  }
+
+  const fullArgs = [
+    ...finalInputArgs,
+    '-filter_complex', filterComplex,
+    '-map', '[vout]', '-map', '0:a',
+    ...codecArgs,
+    '-shortest',
+    outName
+  ];
+
+  return { fullArgs, outName, format, W, H };
+}
+
+/* ---------------- progress UI ---------------- */
+const vuMeter = $('vuMeter');
+for(let i=0;i<28;i++){ const bar=document.createElement('i'); vuMeter.appendChild(bar); }
+let vuTimer = null;
+function startVU(){
+  vuTimer = setInterval(()=>{
+    vuMeter.querySelectorAll('i').forEach(bar=>{
+      bar.style.height = (10 + Math.random()*90) + '%';
+      bar.style.background = Math.random() > 0.85 ? 'var(--amber)' : 'var(--teal-dim)';
+    });
+  }, 110);
+}
+function stopVU(){
+  clearInterval(vuTimer);
+  vuMeter.querySelectorAll('i').forEach(bar=>bar.style.height='6%');
+}
+
+function appendLog(msg){
+  const box = $('logBox');
+  box.textContent += msg + '\n';
+  box.scrollTop = box.scrollHeight;
+}
+$('logToggle').addEventListener('click', ()=>{
+  const box = $('logBox');
+  box.classList.toggle('show');
+  $('logToggle').textContent = box.classList.contains('show') ? 'ocultar log técnico ▴' : 'mostrar log técnico ▾';
+});
+
+/* ---------------- main process flow ---------------- */
+$('processBtn').addEventListener('click', runProcess);
+$('regenBtn').addEventListener('click', ()=>{
+  $('outputPanel').classList.remove('show');
+  $('processBtn').disabled = false;
+  $('processBtn').style.display = 'inline-block';
+});
+
+async function runProcess(){
+  if(!state.audioFile) return;
+  $('processBtn').disabled = true;
+  $('progressWrap').classList.add('show');
+  $('outputPanel').classList.remove('show');
+  $('logBox').textContent = '';
+  $('progressLabel').textContent = 'Carregando motor ffmpeg…';
+  $('progressPct').textContent = '';
+  $('progressFill').style.width = '5%';
+  startVU();
+
+  try{
+    await ensureFFmpeg(appendLog);
+
+    ffmpeg.on('progress', ({progress}) => {
+      const pct = Math.min(99, Math.max(0, Math.round(progress*100)));
+      $('progressFill').style.width = pct + '%';
+      $('progressPct').textContent = pct + '%';
+      $('progressLabel').textContent = 'Renderizando vídeo…';
+    });
+
+    $('progressLabel').textContent = 'Carregando arquivo de áudio…';
+    const ext = state.audioFile.name.split('.').pop();
+    await ffmpeg.writeFile('input_audio', await fetchFile(state.audioFile));
+
+    const hasImageBg = state.bgType === 'image' && state.bgImageFile;
+    if(hasImageBg){
+      await ffmpeg.writeFile('bg_image', await fetchFile(state.bgImageFile));
+    }
+
+    const { fullArgs, outName, format, W, H } = buildArgs();
+    appendLog('$ ffmpeg ' + fullArgs.join(' '));
+    $('progressLabel').textContent = 'Renderizando vídeo…';
+
+    await ffmpeg.exec(fullArgs);
+
+    $('progressLabel').textContent = 'Finalizando…';
+    const data = await ffmpeg.readFile(outName);
+    const mime = format === 'webm' ? 'video/webm' : 'video/mp4';
+    const blob = new Blob([data.buffer], {type: mime});
+    if(outputBlobUrl) URL.revokeObjectURL(outputBlobUrl);
+    outputBlobUrl = URL.createObjectURL(blob);
+
+    const videoEl = $('outputVideo');
+    videoEl.src = outputBlobUrl;
+    $('outSize').textContent = fmtBytes(blob.size);
+    $('outRes').textContent = `${W}×${H}`;
+    $('outFormat').textContent = format.toUpperCase();
+    const dlBtn = $('downloadBtn');
+    dlBtn.href = outputBlobUrl;
+    dlBtn.download = `onda-sonora.${format}`;
+
+    $('progressFill').style.width = '100%';
+    $('progressPct').textContent = '100%';
+    $('progressLabel').textContent = 'Concluído';
+    $('outputPanel').classList.add('show');
+    $('processBtn').style.display = 'none';
+
+  }catch(err){
+    console.error(err);
+    appendLog('ERRO: ' + (err && err.message ? err.message : String(err)));
+    $('progressLabel').textContent = 'Ocorreu um erro — veja o log técnico';
+    $('processBtn').disabled = false;
+    alert('Ocorreu um erro ao gerar o vídeo. Abra o "log técnico" para detalhes. Dica: tente uma resolução menor ou verifique sua conexão (o motor ffmpeg precisa ser baixado na primeira vez).');
+  } finally {
+    stopVU();
+  }
+}
+</script>
+</body>
+</html>
